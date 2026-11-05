@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="器材借用管理系統">
+  <title>器材借用管理系統</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="./">器材借用管理系統</a>
+    <span class="header-note">設備借用申請</span>
+  </header>
+
+  <main class="page">
+    <section class="intro">
+      <p class="eyebrow">EQUIPMENT BORROWING</p>
+      <h1>器材借用申請</h1>
+      <p>請填寫以下資料。送出申請前，系統會先確認電子郵件。</p>
+    </section>
+
+    <section class="notice" aria-live="polite">
+      <strong>系統建置中</strong>
+      <p>目前先完成網站基本介面。申請功能尚未連接後端，因此暫時不會收集或傳送任何個人資料。</p>
+    </section>
+
+    <section class="panel" aria-labelledby="equipment-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">EQUIPMENT</p>
+          <h2 id="equipment-title">設備清單</h2>
+        </div>
+        <span class="muted">資料連線完成後顯示即時數量</span>
+      </div>
+      <div id="equipment-list" class="empty-state">
+        設備資料尚未載入。
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="application-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">APPLICATION</p>
+          <h2 id="application-title">填寫借用申請</h2>
+        </div>
+      </div>
+
+      <form id="borrow-form">
+        <div class="form-grid">
+          <label>借用人
+            <input name="borrowerName" autocomplete="name" required maxlength="80" placeholder="請輸入姓名">
+          </label>
+          <label>聯絡電話
+            <input name="phone" type="tel" autocomplete="tel" required maxlength="30" placeholder="請輸入聯絡電話">
+          </label>
+          <label class="full-width">電子郵件
+            <input name="email" type="email" autocomplete="email" required maxlength="254" placeholder="name@example.com">
+          </label>
+          <label class="full-width">設備
+            <select name="equipmentId" required disabled>
+              <option value="">等待設備資料連線</option>
+            </select>
+          </label>
+          <label>借用起始日期
+            <input name="startDate" type="date" required>
+          </label>
+          <label>預定歸還日期
+            <input name="endDate" type="date" required>
+          </label>
+          <label class="full-width">借用原因
+            <textarea name="purpose" rows="4" required maxlength="1000" placeholder="請簡述借用用途"></textarea>
+          </label>
+        </div>
+        <p class="form-hint">送出後需完成 Email 驗證，申請才會成立。准許人由管理員審核時填寫。</p>
+        <button type="submit" disabled>後端完成後開放申請</button>
+        <p id="form-message" class="form-message" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+  </main>
+
+  <footer class="site-footer">器材借用管理系統</footer>
+</body>
+</html>
