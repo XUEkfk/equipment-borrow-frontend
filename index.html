@@ -6,6 +6,7 @@
   <meta name="description" content="器材借用管理系統">
   <title>器材借用管理系統</title>
   <link rel="stylesheet" href="./styles.css">
+  <script src="./config.js" defer></script>
   <script src="./app.js" defer></script>
 </head>
 <body>
@@ -18,12 +19,12 @@
     <section class="intro">
       <p class="eyebrow">EQUIPMENT BORROWING</p>
       <h1>器材借用申請</h1>
-      <p>請填寫以下資料。送出申請前，系統會先確認電子郵件。</p>
+      <p>請先查看設備清單。借用申請功能目前仍在建置中。</p>
     </section>
 
     <section class="notice" aria-live="polite">
-      <strong>系統建置中</strong>
-      <p>目前先完成網站基本介面。申請功能尚未連接後端，因此暫時不會收集或傳送任何個人資料。</p>
+      <strong>申請功能建置中</strong>
+      <p>設備清單會從後端讀取公開設備資料；借用申請尚未啟用，不會收集或傳送表單中的個人資料。</p>
     </section>
 
     <section class="panel" aria-labelledby="equipment-title">
@@ -32,10 +33,10 @@
           <p class="eyebrow">EQUIPMENT</p>
           <h2 id="equipment-title">設備清單</h2>
         </div>
-        <span class="muted">資料連線完成後顯示即時數量</span>
+        <span class="muted">資料由 GAS 即時讀取</span>
       </div>
-      <div id="equipment-list" class="empty-state">
-        設備資料尚未載入。
+      <div id="equipment-list" class="empty-state" aria-live="polite">
+        設備資料準備載入。
       </div>
     </section>
 
@@ -60,7 +61,7 @@
           </label>
           <label class="full-width">設備
             <select name="equipmentId" required disabled>
-              <option value="">等待設備資料連線</option>
+              <option value="">借用申請尚未開放</option>
             </select>
           </label>
           <label>借用起始日期
@@ -73,7 +74,7 @@
             <textarea name="purpose" rows="4" required maxlength="1000" placeholder="請簡述借用用途"></textarea>
           </label>
         </div>
-        <p class="form-hint">送出後需完成 Email 驗證，申請才會成立。准許人由管理員審核時填寫。</p>
+        <p class="form-hint">借用申請、Email 驗證及管理員審核功能尚未啟用。</p>
         <button type="submit" disabled>後端完成後開放申請</button>
         <p id="form-message" class="form-message" role="status" aria-live="polite"></p>
       </form>
