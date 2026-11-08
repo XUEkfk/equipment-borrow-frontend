@@ -4,6 +4,16 @@ const equipmentList = document.querySelector("#equipment-list");
 const form = document.querySelector("#borrow-form");
 const message = document.querySelector("#form-message");
 
+const EQUIPMENT_REQUEST_TIMEOUT_MS = 12000;
+const MAX_EQUIPMENT_ITEMS = 100;
+const EQUIPMENT_FIELD_LIMITS = Object.freeze({
+  equipmentId: 128,
+  equipmentCode: 64,
+  name: 120,
+  description: 1000
+});
+const MAX_EQUIPMENT_QUANTITY = 10000;
+
 async function loadEquipment() {
   const apiUrl = String(apiConfig.GAS_API_URL || "").trim();
 
@@ -14,6 +24,9 @@ async function loadEquipment() {
 
   renderEquipmentMessage("正在載入設備資料……", "empty-state");
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), EQUIPMENT_REQUEST_TIMEOUT_MS);
+
   try {
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -21,23 +34,73 @@ async function loadEquipment() {
         "Content-Type": "text/plain;charset=utf-8"
       },
       body: JSON.stringify({ action: "equipment.list" }),
-      redirect: "follow"
+      redirect: "follow",
+      signal: controller.signal
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      throw new Error("Equipment API request failed");
     }
 
     const result = await response.json();
     if (!result || result.ok !== true || !Array.isArray(result.data)) {
-      throw new Error("後端回傳格式不符合預期");
+      throw new Error("Equipment API response is invalid");
     }
 
-    renderEquipment(result.data);
+    const equipment = validateEquipmentList(result.data);
+    renderEquipment(equipment);
   } catch (error) {
-    console.error("Equipment API request failed:", error);
-    renderEquipmentMessage("設備資料載入失敗，請稍後重新整理頁面。", "empty-state");
+    if (error && error.name === "AbortError") {
+      console.warn("Equipment API request timed out.");
+    } else {
+      console.error("Equipment API request failed.");
+    }
+    renderEquipmentMessage("設備資料載入失敗或逾時，請稍後重新整理頁面。", "empty-state");
+  } finally {
+    clearTimeout(timeoutId);
   }
+}
+
+function validateEquipmentList(items) {
+  if (items.length > MAX_EQUIPMENT_ITEMS) {
+    throw new Error("Equipment list exceeds the allowed item count");
+  }
+
+  return items.map((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      throw new Error("Equipment item is invalid");
+    }
+
+    const equipmentId = validateEquipmentText(item.equipmentId, "equipmentId", false);
+    const equipmentCode = validateEquipmentText(item.equipmentCode, "equipmentCode", true);
+    const name = validateEquipmentText(item.name, "name", false);
+    const description = validateEquipmentText(item.description, "description", true);
+
+    if (
+      typeof item.totalQuantity !== "number" ||
+      !Number.isInteger(item.totalQuantity) ||
+      item.totalQuantity < 0 ||
+      item.totalQuantity > MAX_EQUIPMENT_QUANTITY
+    ) {
+      throw new Error("Equipment quantity is invalid");
+    }
+
+    return { equipmentId, equipmentCode, name, description, totalQuantity: item.totalQuantity };
+  });
+}
+
+function validateEquipmentText(value, fieldName, optional) {
+  if (optional && value === "") return "";
+
+  if (
+    typeof value !== "string" ||
+    value.trim().length === 0 ||
+    value.length > EQUIPMENT_FIELD_LIMITS[fieldName]
+  ) {
+    throw new Error("Equipment text field is invalid");
+  }
+
+  return value;
 }
 
 function renderEquipmentMessage(text, className) {
@@ -61,26 +124,25 @@ function renderEquipment(items) {
     card.className = "equipment-card";
 
     const heading = document.createElement("h3");
-    heading.textContent = String(item.name || "未命名設備");
+    heading.textContent = item.name;
     card.append(heading);
 
     if (item.equipmentCode) {
       const code = document.createElement("p");
       code.className = "equipment-code";
-      code.textContent = `設備編號：${String(item.equipmentCode)}`;
+      code.textContent = `設備編號：${item.equipmentCode}`;
       card.append(code);
     }
 
     if (item.description) {
       const description = document.createElement("p");
-      description.textContent = String(item.description);
+      description.textContent = item.description;
       card.append(description);
     }
 
     const quantity = document.createElement("p");
     quantity.className = "equipment-quantity";
-    const total = Number(item.totalQuantity);
-    quantity.textContent = `總數量：${Number.isFinite(total) ? total : 0}`;
+    quantity.textContent = `總數量：${item.totalQuantity}`;
     card.append(quantity);
 
     equipmentList.append(card);
