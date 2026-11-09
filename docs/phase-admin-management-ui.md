@@ -60,3 +60,10 @@
 - 本次不修改後端、不實作 OTP 隔離、不修改 `main`，也未合併 PR。
 - 靜態 JavaScript 語法解析：PASS。
 - 瀏覽器與真實 GAS 寄信整合測試：尚未執行，需部署／更新前端後由使用者實測。
+
+
+## 2026-11-09 — 修正 OTP 欄位無法隱藏
+
+- 實際檢查發現 `styles.css` 的全域 `label { display: grid; }` 會覆蓋瀏覽器對 `hidden` 的預設隱藏呈現，造成 OTP label 即使設定 `hidden` 仍可能顯示。
+- 已新增全域 `[hidden] { display: none !important; }`，確保初始登入頁及其他 hidden 元件遵守隱藏狀態。
+- 本次只修正顯示層，不代表登入流程已通過；GAS API、OTP 寄送與 Session 尚待重新實測。
