@@ -8,71 +8,44 @@
   <link rel="stylesheet" href="./styles.css">
   <script src="./config.js" defer></script>
   <script src="./app.js" defer></script>
+
 </head>
 <body>
   <header class="site-header">
     <a class="brand" href="./">器材借用管理系統</a>
-    <span class="header-note">設備借用申請</span>
+    <nav class="header-actions" aria-label="主要導覽">
+      <span class="header-note">設備借用申請</span>
+      <a class="text-link" href="./admin.html">管理員登入</a>
+    </nav>
   </header>
-
   <main class="page">
     <section class="intro">
       <p class="eyebrow">EQUIPMENT BORROWING</p>
       <h1>器材借用申請</h1>
       <p>請先查看設備清單。借用申請功能目前仍在建置中。</p>
     </section>
-
     <section class="notice" aria-live="polite">
       <strong>申請功能建置中</strong>
       <p>設備清單會從後端讀取公開設備資料；借用申請尚未啟用，不會收集或傳送表單中的個人資料。</p>
     </section>
-
     <section class="panel" aria-labelledby="equipment-title">
       <div class="section-heading">
-        <div>
-          <p class="eyebrow">EQUIPMENT</p>
-          <h2 id="equipment-title">設備清單</h2>
-        </div>
+        <div><p class="eyebrow">EQUIPMENT</p><h2 id="equipment-title">設備清單</h2></div>
         <span class="muted">資料由 GAS 即時讀取</span>
       </div>
-      <div id="equipment-list" class="empty-state" aria-live="polite">
-        設備資料準備載入。
-      </div>
+      <div id="equipment-list" class="empty-state" aria-live="polite">設備資料準備載入。</div>
     </section>
-
     <section class="panel" aria-labelledby="application-title">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">APPLICATION</p>
-          <h2 id="application-title">填寫借用申請</h2>
-        </div>
-      </div>
-
+      <div class="section-heading"><div><p class="eyebrow">APPLICATION</p><h2 id="application-title">填寫借用申請</h2></div></div>
       <form id="borrow-form">
         <div class="form-grid">
-          <label>借用人
-            <input name="borrowerName" autocomplete="name" required maxlength="80" placeholder="請輸入姓名">
-          </label>
-          <label>聯絡電話
-            <input name="borrowerPhone" type="tel" autocomplete="tel" required maxlength="30" placeholder="請輸入聯絡電話">
-          </label>
-          <label class="full-width">電子郵件
-            <input name="email" type="email" autocomplete="email" required maxlength="254" placeholder="name@example.com">
-          </label>
-          <label class="full-width">設備
-            <select name="equipmentId" required disabled>
-              <option value="">借用申請尚未開放</option>
-            </select>
-          </label>
-          <label>借用起始日期
-            <input name="startDate" type="date" required>
-          </label>
-          <label>預定歸還日期
-            <input name="dueDate" type="date" required>
-          </label>
-          <label class="full-width">借用原因
-            <textarea name="purpose" rows="4" required maxlength="1000" placeholder="請簡述借用用途"></textarea>
-          </label>
+          <label>借用人<input name="borrowerName" autocomplete="name" required maxlength="80" placeholder="請輸入姓名"></label>
+          <label>聯絡電話<input name="borrowerPhone" type="tel" autocomplete="tel" required maxlength="30" placeholder="請輸入聯絡電話"></label>
+          <label class="full-width">電子郵件<input name="email" type="email" autocomplete="email" required maxlength="254" placeholder="name@example.com"></label>
+          <label class="full-width">設備<select name="equipmentId" required disabled><option value="">借用申請尚未開放</option></select></label>
+          <label>借用起始日期<input name="startDate" type="date" required></label>
+          <label>預定歸還日期<input name="dueDate" type="date" required></label>
+          <label class="full-width">借用原因<textarea name="purpose" rows="4" required maxlength="1000" placeholder="請簡述借用用途"></textarea></label>
         </div>
         <p class="form-hint">借用申請、Email 驗證及管理員審核功能尚未啟用。</p>
         <button type="submit" disabled>後端完成後開放申請</button>
@@ -80,7 +53,6 @@
       </form>
     </section>
   </main>
-
   <footer class="site-footer">器材借用管理系統</footer>
 </body>
 </html>

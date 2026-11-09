@@ -18,10 +18,12 @@
 ## 目前功能
 - 設備清單：讀取已啟用設備的公開欄位（編號、名稱、描述、總數量）。
 - 借用申請：仍停用，不傳送借用者個人資料。
-- Email 驗證、管理員登入、審核及歸還：尚未啟用。
+- 管理員入口與待審核工作台：已加入獨立 `admin.html`，使用 Email OTP、後端管理員 Session、待審核清單與核准／拒絕 API；目前尚待瀏覽器與真實 GAS 整合驗收。
+- 借用者 Email 驗證與正式借用申請：尚未啟用。
+- 交付確認及完整管理總覽：後端尚未提供相應 API，前端不會模擬此功能。
 
 ## 本機預覽
-目前為無建置工具的靜態網站，可直接以瀏覽器開啟 `index.html`，或使用 VS Code Live Server。
+目前為無建置工具的靜態網站，可直接以瀏覽器開啟 `index.html`，或使用本機靜態 HTTP Server。
 
 ## 部署
 Repository 的 GitHub Pages workflow 會在推送至 `main` 後部署網站。首次使用時，請至 Settings → Pages，確認 Source 使用 GitHub Actions。
