@@ -23,16 +23,16 @@
     <div class="admin-layout">
       <section class="admin-panel" aria-labelledby="login-title">
         <h2 id="login-title">管理員登入</h2>
-        <p>使用系統設定的管理員 Email 接收一次性驗證碼。</p>
+        <p>系統會先確認管理員是否仍在 30 天認證期限內；首次登入或逾期才會寄送一次性驗證碼。</p>
         <form id="login-form" class="admin-form">
           <label>Email
             <input id="admin-email" type="email" autocomplete="email" maxlength="254" required placeholder="admin@example.com">
           </label>
-          <button id="send-code" type="button">寄送驗證碼</button>
+          <button id="send-code" type="button" hidden>重新寄送驗證碼</button>
           <label>六位數驗證碼
             <input id="admin-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required placeholder="請輸入 Email 驗證碼">
           </label>
-          <button id="verify-login" type="submit">驗證並登入</button>
+          <button id="verify-login" type="submit">登入</button>
         </form>
         <p id="login-message" class="admin-message" role="status" aria-live="polite"></p>
       </section>
