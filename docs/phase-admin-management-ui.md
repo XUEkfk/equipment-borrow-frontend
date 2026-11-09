@@ -37,7 +37,7 @@
 - [x] 首頁加入管理員入口。
 - [x] 建立管理員登入及待審核 UI。
 - [x] 依目前後端 action 串接 OTP、Session、待審核、審核及登出。
-- [ ] JavaScript 靜態語法檢查。
+- [x] `admin.js` JavaScript 靜態語法解析（以 JavaScript Function parser 檢查，PASS）。
 - [ ] 瀏覽器 UI 測試。
 - [ ] 真實管理員 OTP／Session／審核流程整合測試（待前端完成後依測試計畫執行）。
 - [ ] 後端測試結果同步記錄 Backend Issue #33。
