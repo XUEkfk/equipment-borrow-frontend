@@ -10,6 +10,8 @@
   --soft-blue: #edf4f7;
 }
 * { box-sizing: border-box; }
+/* Keep the HTML hidden attribute effective even when component styles set display. */
+[hidden] { display: none !important; }
 body {
   margin: 0;
   background: var(--page);
