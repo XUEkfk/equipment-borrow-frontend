@@ -5,6 +5,7 @@
   const apiUrl = String(config.GAS_API_URL || "").trim();
   const emailInput = document.querySelector("#admin-email");
   const codeInput = document.querySelector("#admin-code");
+  const codeLabel = codeInput.closest("label");
   const loginForm = document.querySelector("#login-form");
   const sendCodeButton = document.querySelector("#send-code");
   const verifyButton = document.querySelector("#verify-login");
@@ -17,6 +18,12 @@
   // Deliberately memory-only: reload closes the UI session and requires OTP login again.
   let adminSession = "";
   let verifiedEmail = "";
+  let otpRequired = false;
+
+  codeLabel.hidden = true;
+  codeInput.required = false;
+  sendCodeButton.hidden = true;
+  verifyButton.textContent = "登入";
 
   async function callApi(action, payload = {}) {
     if (!apiUrl) throw new Error("尚未設定 GAS Web App URL，無法連線後端。");
@@ -53,6 +60,7 @@
     verifiedEmail = email;
     loginMessage.textContent = "登入成功。管理員身分已由後端確認。";
     sessionNote.textContent = "已登入：" + email + "（Session 約 30 分鐘有效；重新整理頁面會登出）";
+    otpRequired = false;
     logoutButton.hidden = false;
     emailInput.disabled = true;
     codeInput.disabled = true;
@@ -61,14 +69,22 @@
     loadPendingRequests();
   }
 
+  async function requestOtp(email) {
+    await callApi("email.requestCode", { email });
+    otpRequired = true;
+    codeLabel.hidden = false;
+    codeInput.required = true;
+    sendCodeButton.hidden = false;
+    verifyButton.textContent = "驗證並登入";
+    showMessage(loginMessage, "首次登入或已超過 30 天未登入，驗證碼已寄出，請於 5 分鐘內輸入。");
+  }
+
   sendCodeButton.addEventListener("click", async () => {
     const email = emailInput.value.trim().toLowerCase();
     if (!emailInput.reportValidity()) return;
     sendCodeButton.disabled = true;
-    showMessage(loginMessage, "正在寄送驗證碼……");
     try {
-      await callApi("email.requestCode", { email });
-      showMessage(loginMessage, "驗證碼已寄出，請於 5 分鐘內輸入。");
+      await requestOtp(email);
     } catch (error) {
       showMessage(loginMessage, error.message);
     } finally {
@@ -79,14 +95,20 @@
   loginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const email = emailInput.value.trim().toLowerCase();
-    const code = codeInput.value.trim();
-    if (!emailInput.reportValidity() || !codeInput.reportValidity()) return;
+    if (!emailInput.reportValidity()) return;
+    if (otpRequired && !codeInput.reportValidity()) return;
     verifyButton.disabled = true;
-    showMessage(loginMessage, "正在驗證 Email……");
+    showMessage(loginMessage, otpRequired ? "正在驗證 Email……" : "正在確認管理員認證狀態……");
     try {
-      await callApi("email.verifyCode", { email, code });
-      showMessage(loginMessage, "Email 驗證成功，正在確認管理員資格……");
-      const session = await callApi("admin.session.create", { email });
+      if (otpRequired) {
+        const code = codeInput.value.trim();
+        await callApi("email.verifyCode", { email, code });
+      }
+      const session = await callApi("admin.session.login", { email });
+      if (session && session.otpRequired === true) {
+        await requestOtp(email);
+        return;
+      }
       if (!session || typeof session.adminSession !== "string" || !session.adminSession) {
         throw new Error("後端未回傳有效管理員 Session。");
       }
@@ -196,6 +218,12 @@
     codeInput.disabled = false;
     sendCodeButton.disabled = false;
     verifyButton.disabled = false;
+    otpRequired = false;
+    codeInput.value = "";
+    codeInput.required = false;
+    codeLabel.hidden = true;
+    sendCodeButton.hidden = true;
+    verifyButton.textContent = "登入";
     logoutButton.hidden = true;
     sessionNote.textContent = "尚未登入。登入後才能讀取受保護的申請資料。";
     requestList.className = "empty-admin";
