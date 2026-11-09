@@ -20,10 +20,27 @@
   let verifiedEmail = "";
   let otpRequired = false;
 
-  codeLabel.hidden = true;
-  codeInput.required = false;
-  sendCodeButton.hidden = true;
-  verifyButton.textContent = "登入";
+  function showOtpMode() {
+    otpRequired = true;
+    codeLabel.hidden = false;
+    codeInput.required = true;
+    codeInput.disabled = false;
+    sendCodeButton.hidden = false;
+    sendCodeButton.disabled = false;
+    verifyButton.textContent = "驗證碼確認";
+  }
+
+  function hideOtpMode() {
+    otpRequired = false;
+    codeLabel.hidden = true;
+    codeInput.required = false;
+    codeInput.value = "";
+    sendCodeButton.hidden = true;
+    sendCodeButton.disabled = false;
+    verifyButton.textContent = "登入";
+  }
+
+  hideOtpMode();
 
   async function callApi(action, payload = {}) {
     if (!apiUrl) throw new Error("尚未設定 GAS Web App URL，無法連線後端。");
@@ -70,13 +87,16 @@
   }
 
   async function requestOtp(email) {
-    await callApi("email.requestCode", { email });
-    otpRequired = true;
-    codeLabel.hidden = false;
-    codeInput.required = true;
-    sendCodeButton.hidden = false;
-    verifyButton.textContent = "驗證並登入";
-    showMessage(loginMessage, "首次登入或已超過 30 天未登入，驗證碼已寄出，請於 5 分鐘內輸入。");
+    // 先切換畫面，再呼叫寄信 API；即使寄送失敗也保留驗證欄位與重寄入口。
+    showOtpMode();
+    showMessage(loginMessage, "需要 Email 驗證，正在寄送六位數驗證碼……");
+    try {
+      await callApi("email.requestCode", { email });
+      showMessage(loginMessage, "驗證碼已寄出，請於 5 分鐘內輸入；若未收到，可重新寄送。");
+    } catch (error) {
+      showMessage(loginMessage, "驗證碼尚未成功寄出：" + error.message + "。請確認 Email，或按「重新寄送驗證碼」。");
+      throw error;
+    }
   }
 
   sendCodeButton.addEventListener("click", async () => {
@@ -218,12 +238,7 @@
     codeInput.disabled = false;
     sendCodeButton.disabled = false;
     verifyButton.disabled = false;
-    otpRequired = false;
-    codeInput.value = "";
-    codeInput.required = false;
-    codeLabel.hidden = true;
-    sendCodeButton.hidden = true;
-    verifyButton.textContent = "登入";
+    hideOtpMode();
     logoutButton.hidden = true;
     sessionNote.textContent = "尚未登入。登入後才能讀取受保護的申請資料。";
     requestList.className = "empty-admin";
