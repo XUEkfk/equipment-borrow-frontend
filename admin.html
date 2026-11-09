@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="器材借用管理系統管理員入口">
+  <title>管理員登入｜器材借用管理系統</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./config.js" defer></script>
+  <script src="./admin.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="./">器材借用管理系統</a>
+    <a class="text-link" href="./">返回借用首頁</a>
+  </header>
+  <main class="admin-page">
+    <section class="admin-intro">
+      <p class="eyebrow">ADMINISTRATION</p>
+      <h1>管理員工作台</h1>
+      <p class="muted">僅限系統指定管理員登入。Email 驗證成功不代表取得管理員權限，仍須由後端確認管理員資格。</p>
+    </section>
+    <div class="admin-layout">
+      <section class="admin-panel" aria-labelledby="login-title">
+        <h2 id="login-title">管理員登入</h2>
+        <p>使用系統設定的管理員 Email 接收一次性驗證碼。</p>
+        <form id="login-form" class="admin-form">
+          <label>Email
+            <input id="admin-email" type="email" autocomplete="email" maxlength="254" required placeholder="admin@example.com">
+          </label>
+          <button id="send-code" type="button">寄送驗證碼</button>
+          <label>六位數驗證碼
+            <input id="admin-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required placeholder="請輸入 Email 驗證碼">
+          </label>
+          <button id="verify-login" type="submit">驗證並登入</button>
+        </form>
+        <p id="login-message" class="admin-message" role="status" aria-live="polite"></p>
+      </section>
+      <section class="admin-panel" aria-labelledby="requests-title">
+        <div class="admin-toolbar">
+          <div><p class="eyebrow">BORROW REQUESTS</p><h2 id="requests-title">待審核申請</h2></div>
+          <button id="logout" class="button-secondary" type="button" hidden>登出</button>
+        </div>
+        <p id="session-note" class="admin-session-note">尚未登入。登入後才能讀取受保護的申請資料。</p>
+        <div id="request-list" class="empty-admin" aria-live="polite">請先以管理員身分登入。</div>
+        <p id="request-message" class="admin-message" role="status" aria-live="polite"></p>
+      </section>
+    </div>
+  </main>
+  <footer class="site-footer">器材借用管理系統</footer>
+</body>
+</html>
