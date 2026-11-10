@@ -149,6 +149,156 @@ function renderEquipment(items) {
   });
 }
 
+// Borrower OTP UI uses the existing email.requestCode / email.verifyCode API.
+// Device trust is intentionally not persisted until the backend trust-token API exists.
+const borrowerEmailInput = form.elements.namedItem("email");
+const otpInput = document.querySelector("#borrower-otp");
+const otpEntry = document.querySelector("#otp-entry");
+const otpStatus = document.querySelector("#otp-status");
+const otpMessage = document.querySelector("#otp-message");
+const requestOtpButton = document.querySelector("#request-otp");
+const verifyOtpButton = document.querySelector("#verify-otp");
+const resendOtpButton = document.querySelector("#resend-otp");
+
+let otpVerifiedForEmail = "";
+let otpRequestEmail = "";
+let resendCooldownTimer = null;
+
+function normalizedBorrowerEmail() {
+  return String(borrowerEmailInput.value || "").trim().toLowerCase();
+}
+
+function resetBorrowerOtp(messageText = "Email 尚未驗證。") {
+  otpVerifiedForEmail = "";
+  otpRequestEmail = "";
+  otpInput.value = "";
+  otpInput.disabled = false;
+  otpEntry.hidden = true;
+  otpStatus.textContent = "尚未驗證";
+  otpMessage.textContent = messageText;
+  requestOtpButton.disabled = false;
+  verifyOtpButton.disabled = false;
+  verifyOtpButton.textContent = "確認驗證";
+  resendOtpButton.disabled = true;
+  resendOtpButton.textContent = "重新寄送";
+  if (resendCooldownTimer !== null) {
+    window.clearTimeout(resendCooldownTimer);
+    resendCooldownTimer = null;
+  }
+}
+
+async function callBorrowerOtpApi(action, payload = {}) {
+  const apiUrl = String(apiConfig.GAS_API_URL || "").trim();
+  if (!apiUrl) throw new Error("尚未設定 GAS Web App URL，無法寄送驗證碼。");
+
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), EQUIPMENT_REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action, ...payload }),
+      redirect: "follow",
+      signal: controller.signal
+    });
+    if (!response.ok) throw new Error("後端連線失敗，請稍後再試。");
+    const result = await response.json();
+    if (!result || result.ok !== true) {
+      throw new Error(result && result.message ? result.message : "後端無法處理此請求。");
+    }
+    return result.data;
+  } catch (error) {
+    if (error && error.name === "AbortError") throw new Error("連線逾時，請稍後再試。");
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+function startOtpResendCooldown() {
+  resendOtpButton.disabled = true;
+  resendOtpButton.textContent = "60 秒後可重新寄送";
+  resendCooldownTimer = window.setTimeout(() => {
+    resendOtpButton.disabled = false;
+    resendOtpButton.textContent = "重新寄送";
+    resendCooldownTimer = null;
+  }, 60000);
+}
+
+async function requestBorrowerOtp(isResend = false) {
+  const email = normalizedBorrowerEmail();
+  if (!borrowerEmailInput.reportValidity()) return;
+  if (isResend && email !== otpRequestEmail) {
+    resetBorrowerOtp("Email 已變更，請重新寄送驗證碼。");
+    return;
+  }
+
+  requestOtpButton.disabled = true;
+  resendOtpButton.disabled = true;
+  otpMessage.textContent = "正在寄送六位數驗證碼……";
+  try {
+    await callBorrowerOtpApi("email.requestCode", { email });
+    if (normalizedBorrowerEmail() !== email) {
+      resetBorrowerOtp("Email 已變更。請使用目前的 Email 重新寄送驗證碼。");
+      return;
+    }
+    otpRequestEmail = email;
+    otpVerifiedForEmail = "";
+    otpInput.value = "";
+    otpInput.disabled = false;
+    verifyOtpButton.disabled = false;
+    verifyOtpButton.textContent = "確認驗證";
+    otpEntry.hidden = false;
+    otpStatus.textContent = "等待驗證";
+    otpMessage.textContent = "驗證碼已寄出，請於 5 分鐘內輸入。";
+    startOtpResendCooldown();
+  } catch (error) {
+    otpMessage.textContent = "驗證碼寄送失敗：" + error.message;
+    requestOtpButton.disabled = false;
+    resendOtpButton.disabled = true;
+  }
+}
+
+requestOtpButton.addEventListener("click", () => requestBorrowerOtp(false));
+resendOtpButton.addEventListener("click", () => requestBorrowerOtp(true));
+
+verifyOtpButton.addEventListener("click", async () => {
+  const email = normalizedBorrowerEmail();
+  if (!borrowerEmailInput.reportValidity()) return;
+  if (!otpInput.reportValidity()) {
+    otpInput.focus();
+    return;
+  }
+  if (!otpRequestEmail || email !== otpRequestEmail) {
+    resetBorrowerOtp("Email 已變更，請重新寄送驗證碼。");
+    return;
+  }
+
+  verifyOtpButton.disabled = true;
+  otpMessage.textContent = "正在驗證 Email……";
+  try {
+    await callBorrowerOtpApi("email.verifyCode", { email, code: otpInput.value.trim() });
+    otpVerifiedForEmail = email;
+    otpStatus.textContent = "已驗證（本頁面）";
+    otpMessage.textContent = "Email 驗證成功。本次頁面已確認；30 天裝置信任仍待後端功能完成。";
+    otpInput.disabled = true;
+    verifyOtpButton.textContent = "已完成驗證";
+    requestOtpButton.disabled = true;
+    resendOtpButton.disabled = true;
+  } catch (error) {
+    otpStatus.textContent = "驗證未成功";
+    otpMessage.textContent = "Email 驗證失敗：" + error.message;
+  } finally {
+    verifyOtpButton.disabled = Boolean(otpVerifiedForEmail);
+  }
+});
+
+borrowerEmailInput.addEventListener("input", () => {
+  if (otpRequestEmail && normalizedBorrowerEmail() !== otpRequestEmail) {
+    resetBorrowerOtp("Email 已變更，請重新寄送並驗證新的 Email。");
+  }
+});
+
 form.addEventListener("submit", (event) => {
   event.preventDefault();
   message.textContent = "申請功能尚未啟用，請待系統完成後再使用。";
