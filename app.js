@@ -149,8 +149,111 @@ function renderEquipment(items) {
   });
 }
 
-// Borrower OTP uses borrower-only backend actions; administrator OTP state is isolated.
-// Device trust is not persisted until the backend token contract and storage decision are complete.
+// Borrower OTP and 30-day single-browser trust use borrower-only backend actions.
+const BORROWER_TRUST_STORAGE_PREFIX = "equipmentBorrow.borrowerDeviceTrust.v1:";
+const borrowerEmailInput = form.elements.namedItem("email");
+const otpInput = document.querySelector("#borrower-otp");
+const otpEntry = document.querySelector("#otp-entry");
+const otpStatus = document.querySelector("#otp-status");
+const otpMessage = document.querySelector("#otp-message");
+const requestOtpButton = document.querySelector("#request-otp");
+const verifyOtpButton = document.querySelector("#verify-otp");
+const resendOtpButton = document.querySelector("#resend-otp");
+
+let otpVerifiedForEmail = "";
+let otpRequestEmail = "";
+let resendCooldownTimer = null;
+let trustCheckInProgressForEmail = "";
+
+function normalizedBorrowerEmail() {
+  return String(borrowerEmailInput.value || "").trim().toLowerCase();
+}
+
+function borrowerTrustStorageKey(email) {
+  return BORROWER_TRUST_STORAGE_PREFIX + encodeURIComponent(email);
+}
+
+function readBorrowerTrustCredential(email) {
+  try {
+    return window.localStorage.getItem(borrowerTrustStorageKey(email)) || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function storeBorrowerTrustCredential(email, credential) {
+  if (!/^[a-f0-9]{64}$/.test(String(credential || ""))) {
+    throw new Error("後端裝置信任憑證格式無效。");
+  }
+  window.localStorage.setItem(borrowerTrustStorageKey(email), credential);
+}
+
+function removeBorrowerTrustCredential(email) {
+  try {
+    window.localStorage.removeItem(borrowerTrustStorageKey(email));
+  } catch (error) {
+    console.warn("Unable to clear borrower device trust from this browser.");
+  }
+}
+
+async function checkBorrowerDeviceTrust(email) {
+  const credential = readBorrowerTrustCredential(email);
+  if (!credential) return false;
+  if (trustCheckInProgressForEmail === email) return false;
+
+  trustCheckInProgressForEmail = email;
+  otpStatus.textContent = "正在確認此瀏覽器的 30 天信任……";
+  otpMessage.textContent = "正在向後端確認裝置信任狀態。";
+  try {
+    const result = await callBorrowerOtpApi("borrower.device.check", {
+      email,
+      deviceCredential: credential
+    });
+    if (normalizedBorrowerEmail() !== email) return false;
+    if (result && result.trusted === true) {
+      otpVerifiedForEmail = email;
+      otpRequestEmail = email;
+      otpEntry.hidden = true;
+      otpInput.value = "";
+      otpInput.disabled = true;
+      otpStatus.textContent = "此瀏覽器已受信任";
+      otpMessage.textContent = "此 Email 已在本瀏覽器完成驗證，30 天期限內不必重新輸入 OTP。";
+      requestOtpButton.disabled = true;
+      verifyOtpButton.disabled = true;
+      resendOtpButton.disabled = true;
+      return true;
+    }
+    removeBorrowerTrustCredential(email);
+    otpStatus.textContent = "裝置信任已失效";
+    otpMessage.textContent = "此瀏覽器的信任已過期、撤銷或被其他裝置取代，請重新驗證 Email。";
+    return false;
+  } catch (error) {
+    otpStatus.textContent = "無法確認裝置信任";
+    otpMessage.textContent = "暫時無法確認信任狀態，請重新驗證 Email。";
+    return false;
+  } finally {
+    trustCheckInProgressForEmail = "";
+  }
+}
+
+function resetBorrowerOtp(messageText = "Email 尚未驗證。") {
+  otpVerifiedForEmail = "";
+  otpRequestEmail = "";
+  otpInput.value = "";
+  otpInput.disabled = false;
+  otpEntry.hidden = true;
+  otpStatus.textContent = "尚未驗證";
+  otpMessage.textContent = messageText;
+  requestOtpButton.disabled = false;
+  verifyOtpButton.disabled = false;
+  verifyOtpButton.textContent = "確認驗證";
+  resendOtpButton.disabled = true;
+  resendOtpButton.textContent = "重新寄送";
+  if (resendCooldownTimer !== null) {
+    window.clearTimeout(resendCooldownTimer);
+    resendCooldownTimer = null;
+  }
+}
 const borrowerEmailInput = form.elements.namedItem("email");
 const otpInput = document.querySelector("#borrower-otp");
 const otpEntry = document.querySelector("#otp-entry");
@@ -228,6 +331,7 @@ function startOtpResendCooldown() {
 async function requestBorrowerOtp(isResend = false) {
   const email = normalizedBorrowerEmail();
   if (!borrowerEmailInput.reportValidity()) return;
+  if (!isResend && await checkBorrowerDeviceTrust(email)) return;
   if (isResend && email !== otpRequestEmail) {
     resetBorrowerOtp("Email 已變更，請重新寄送驗證碼。");
     return;
@@ -279,8 +383,25 @@ verifyOtpButton.addEventListener("click", async () => {
   try {
     await callBorrowerOtpApi("borrower.email.verifyCode", { email, code: otpInput.value.trim() });
     otpVerifiedForEmail = email;
-    otpStatus.textContent = "已驗證（本頁面）";
-    otpMessage.textContent = "Email 驗證成功。本次頁面已確認；30 天裝置信任尚未啟用。";
+    otpStatus.textContent = "Email 驗證成功，正在建立 30 天裝置信任……";
+    otpMessage.textContent = "正在將此瀏覽器設為唯一受信任裝置。";
+    try {
+      // Check storage availability before issuing a credential that replaces another browser.
+      const storageProbe = BORROWER_TRUST_STORAGE_PREFIX + "probe";
+      window.localStorage.setItem(storageProbe, "1");
+      window.localStorage.removeItem(storageProbe);
+      const trust = await callBorrowerOtpApi("borrower.device.trust", { email });
+      if (!trust || trust.trusted !== true || !/^[a-f0-9]{64}$/.test(String(trust.deviceCredential || ""))) {
+        throw new Error("後端未回傳有效的裝置信任憑證。");
+      }
+      storeBorrowerTrustCredential(email, trust.deviceCredential);
+      otpStatus.textContent = "此瀏覽器已受信任";
+      otpMessage.textContent = "Email 驗證成功。此瀏覽器已取得 30 天信任；其他瀏覽器的舊信任已失效。";
+    } catch (trustError) {
+      otpStatus.textContent = "Email 已驗證（本頁面）";
+      otpMessage.textContent = "Email 驗證成功，但無法保存 30 天裝置信任。請勿清除或關閉此頁面；需要時可重新驗證。";
+      console.warn("Borrower device trust was not persisted.");
+    }
     otpInput.disabled = true;
     verifyOtpButton.textContent = "已完成驗證";
     requestOtpButton.disabled = true;
@@ -296,6 +417,13 @@ verifyOtpButton.addEventListener("click", async () => {
 borrowerEmailInput.addEventListener("input", () => {
   if (otpRequestEmail && normalizedBorrowerEmail() !== otpRequestEmail) {
     resetBorrowerOtp("Email 已變更，請重新寄送並驗證新的 Email。");
+  }
+});
+
+borrowerEmailInput.addEventListener("blur", async () => {
+  const email = normalizedBorrowerEmail();
+  if (email && borrowerEmailInput.checkValidity() && !otpVerifiedForEmail) {
+    await checkBorrowerDeviceTrust(email);
   }
 });
 
