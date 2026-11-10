@@ -371,7 +371,6 @@ verifyOtpButton.addEventListener("click", async () => {
         deviceCredential: issuedTrustCredential
       });
       if (!activated || activated.trusted !== true) {
-        removeBorrowerTrustCredential(email);
         throw new Error("裝置信任啟用失敗，原受信任裝置不應受到影響。");
       }
       otpStatus.textContent = "此瀏覽器已受信任";
