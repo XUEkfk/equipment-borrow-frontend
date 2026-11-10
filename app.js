@@ -254,42 +254,6 @@ function resetBorrowerOtp(messageText = "Email 尚未驗證。") {
     resendCooldownTimer = null;
   }
 }
-const borrowerEmailInput = form.elements.namedItem("email");
-const otpInput = document.querySelector("#borrower-otp");
-const otpEntry = document.querySelector("#otp-entry");
-const otpStatus = document.querySelector("#otp-status");
-const otpMessage = document.querySelector("#otp-message");
-const requestOtpButton = document.querySelector("#request-otp");
-const verifyOtpButton = document.querySelector("#verify-otp");
-const resendOtpButton = document.querySelector("#resend-otp");
-
-let otpVerifiedForEmail = "";
-let otpRequestEmail = "";
-let resendCooldownTimer = null;
-
-function normalizedBorrowerEmail() {
-  return String(borrowerEmailInput.value || "").trim().toLowerCase();
-}
-
-function resetBorrowerOtp(messageText = "Email 尚未驗證。") {
-  otpVerifiedForEmail = "";
-  otpRequestEmail = "";
-  otpInput.value = "";
-  otpInput.disabled = false;
-  otpEntry.hidden = true;
-  otpStatus.textContent = "尚未驗證";
-  otpMessage.textContent = messageText;
-  requestOtpButton.disabled = false;
-  verifyOtpButton.disabled = false;
-  verifyOtpButton.textContent = "確認驗證";
-  resendOtpButton.disabled = true;
-  resendOtpButton.textContent = "重新寄送";
-  if (resendCooldownTimer !== null) {
-    window.clearTimeout(resendCooldownTimer);
-    resendCooldownTimer = null;
-  }
-}
-
 async function callBorrowerOtpApi(action, payload = {}) {
   const apiUrl = String(apiConfig.GAS_API_URL || "").trim();
   if (!apiUrl) throw new Error("尚未設定 GAS Web App URL，無法寄送驗證碼。");
