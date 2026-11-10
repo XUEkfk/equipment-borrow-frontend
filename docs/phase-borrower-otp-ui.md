@@ -31,3 +31,12 @@ Branch: `issues/13-borrower-otp-device-trust`
 1. Finish backend device-trust API contract and implementation.
 2. Integrate the opaque trust credential without exposing it in URL or logs.
 3. Complete browser/GAS integration tests before enabling borrow submission.
+
+## Phase 2 — 30-day single-browser trust integration (2026-11-10)
+- Integrated backend actions `borrower.device.check`, `borrower.device.trust`, and `borrower.device.revoke`.
+- Uses `localStorage` only because the user explicitly approved it for an isolated functional-test phase. Credential is stored per normalized Email and checked with the backend before OTP is skipped.
+- After OTP succeeds, the frontend requests a single-device trust credential. If browser storage fails after issuance, it attempts to revoke the newly issued credential so the previous trusted browser is not displaced without a saved replacement.
+- If another browser completes OTP and receives a credential, the prior browser's credential fails its next server check.
+- Borrow submission remains disabled; no `borrow.create` action is called.
+- This implementation is **not production-safe**: JavaScript/XSS can read localStorage credentials. A later security phase must replace or redesign this storage before production rollout.
+- Browser/GAS runtime tests have not yet been run. Static review only; user must run local tests and perform isolated browser tests.
