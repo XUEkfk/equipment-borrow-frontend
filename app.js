@@ -149,8 +149,8 @@ function renderEquipment(items) {
   });
 }
 
-// Borrower OTP UI uses the existing email.requestCode / email.verifyCode API.
-// Device trust is intentionally not persisted until the backend trust-token API exists.
+// Borrower OTP uses borrower-only backend actions; administrator OTP state is isolated.
+// Device trust is not persisted until the backend token contract and storage decision are complete.
 const borrowerEmailInput = form.elements.namedItem("email");
 const otpInput = document.querySelector("#borrower-otp");
 const otpEntry = document.querySelector("#otp-entry");
@@ -237,7 +237,7 @@ async function requestBorrowerOtp(isResend = false) {
   resendOtpButton.disabled = true;
   otpMessage.textContent = "正在寄送六位數驗證碼……";
   try {
-    await callBorrowerOtpApi("email.requestCode", { email });
+    await callBorrowerOtpApi("borrower.email.requestCode", { email });
     if (normalizedBorrowerEmail() !== email) {
       resetBorrowerOtp("Email 已變更。請使用目前的 Email 重新寄送驗證碼。");
       return;
@@ -277,10 +277,10 @@ verifyOtpButton.addEventListener("click", async () => {
   verifyOtpButton.disabled = true;
   otpMessage.textContent = "正在驗證 Email……";
   try {
-    await callBorrowerOtpApi("email.verifyCode", { email, code: otpInput.value.trim() });
+    await callBorrowerOtpApi("borrower.email.verifyCode", { email, code: otpInput.value.trim() });
     otpVerifiedForEmail = email;
     otpStatus.textContent = "已驗證（本頁面）";
-    otpMessage.textContent = "Email 驗證成功。本次頁面已確認；30 天裝置信任仍待後端功能完成。";
+    otpMessage.textContent = "Email 驗證成功。本次頁面已確認；30 天裝置信任尚未啟用。";
     otpInput.disabled = true;
     verifyOtpButton.textContent = "已完成驗證";
     requestOtpButton.disabled = true;
