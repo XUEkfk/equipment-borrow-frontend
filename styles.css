@@ -129,3 +129,28 @@ button {
 .admin-session-note { color: var(--muted); font-size: .88rem; overflow-wrap: anywhere; }
 @media (max-width: 760px) { .admin-layout { grid-template-columns: 1fr; } .admin-page { margin-top: 30px; } }
 @media (max-width: 620px) { .header-actions { gap: 12px; } .header-note { display: none; } .request-meta { grid-template-columns: 1fr; } .admin-panel { padding: 20px; } }
+
+/* Borrower Email OTP */
+.email-verification {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8fafb;
+}
+.verification-heading, .verification-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.verification-heading { justify-content: space-between; margin-bottom: 10px; }
+.verification-status { color: var(--muted); font-size: .9rem; }
+.otp-entry { display: grid; gap: 12px; margin-top: 14px; }
+.otp-entry label { max-width: 360px; }
+.email-verification .form-hint { margin: 6px 0 12px; }
+.email-verification .form-message { margin-bottom: 0; }
+.button-secondary { background: #e9eef2; color: var(--ink); }
+@media (max-width: 620px) {
+  .email-verification { padding: 15px; }
+  .verification-actions button { flex: 1 1 auto; }
+}
