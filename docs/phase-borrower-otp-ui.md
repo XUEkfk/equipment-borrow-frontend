@@ -6,24 +6,23 @@ Branch: `issues/13-borrower-otp-device-trust`
 
 ## Scope implemented in this phase
 - Add borrower Email OTP controls to the public application form.
-- Call the existing `email.requestCode` and `email.verifyCode` backend actions.
+- Call the borrower-isolated `borrower.email.requestCode` and `borrower.email.verifyCode` backend actions.
 - Add input validation, request/verify status, 60-second resend cooldown, timeout handling, and reset verification when the Email changes.
 - Keep the borrow submit button disabled. No `borrow.create` call is added.
 
 ## Security boundary
 - OTP verification state is memory-only and scoped to the current page.
-- No Email, OTP, trust marker, or bearer credential is persisted by this frontend change.
+- No Email, OTP, trust marker, or bearer credential is persisted by this frontend change. The UI calls borrower-specific OTP actions only.
 - 30-day browser/device trust is NOT implemented yet. Backend must issue and validate an opaque, revocable device-trust credential and enforce expiry server-side before this behavior can be enabled.
 - This frontend does not treat localStorage, Email, or a client-side boolean as authorization.
 
 ## Dependencies / open work
 - Backend device-trust API and storage/expiry/revocation design.
-- Confirm OTP marker is bound to the borrower verification flow and cannot be reused across administrator authentication.
 - Backend #27 abuse protection and public API review.
 - Real Apps Script / browser integration tests for OTP send, verify, rate limits, expiry, device binding, and 30-day renewal.
 
 ## Verification
-- Static safety review: no `borrow.create` action introduced; submit remains disabled; only existing OTP actions are called.
+- Static safety review: no `borrow.create` action introduced; submit remains disabled; only borrower-specific OTP actions are called.
 - Runtime/browser tests: not yet run.
 - Real Email delivery: not tested in this phase.
 - GAS deployment: unchanged.
