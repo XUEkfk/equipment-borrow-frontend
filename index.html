@@ -22,11 +22,11 @@
     <section class="intro">
       <p class="eyebrow">EQUIPMENT BORROWING</p>
       <h1>器材借用申請</h1>
-      <p>請先查看設備清單。借用申請功能目前仍在建置中。</p>
+      <p>請先完成 Email 驗證，再選擇設備與借用日期送出申請。</p>
     </section>
     <section class="notice" aria-live="polite">
-      <strong>申請功能建置中</strong>
-      <p>設備清單會從後端讀取公開設備資料；借用申請尚未啟用。若操作 Email 驗證，系統會將 Email 傳送至後端並寄送一次性驗證碼；其他申請資料不會送出。</p>
+      <strong>借用申請流程</strong>
+      <p>設備清單與借用申請均由後端驗證。送出前須完成 Email OTP 或有效的 30 天裝置信任確認。</p>
     </section>
     <section class="panel" aria-labelledby="equipment-title">
       <div class="section-heading">
@@ -65,7 +65,7 @@
             <p id="otp-message" class="form-message" role="status" aria-live="polite"></p>
           </div>
           <label class="full-width">設備<select name="equipmentId" required disabled><option value="">借用申請尚未開放</option></select></label>
-          <label>借用起始日期<input name="startDate" type="date" required></label>
+          <label>借用數量<input name="quantity" type="number" min="1" max="10000" step="1" value="1" required></label>\n          <label>借用起始日期<input name="startDate" type="date" required></label>
           <label>預定歸還日期<input name="dueDate" type="date" required></label>
           <label class="full-width">借用原因<textarea name="purpose" rows="4" required maxlength="1000" placeholder="請簡述借用用途"></textarea></label>
         </div>
