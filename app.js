@@ -376,9 +376,11 @@ verifyOtpButton.addEventListener("click", async () => {
       otpStatus.textContent = "此瀏覽器已受信任";
       otpMessage.textContent = "Email 驗證成功。此瀏覽器已取得 30 天信任；其他瀏覽器的舊信任已失效。";
     } catch (trustError) {
-      // Activation may have committed on the server even if its HTTP response was lost.
-      // Resolve that ambiguous outcome before deleting the browser credential.
+      // Activation may have committed even if its HTTP response was lost.
+      // A failed status check is ambiguous: retain the stored credential so a
+      // later page load can resolve it without accidentally locking out either browser.
       let confirmedActive = false;
+      let activationStatusUnknown = false;
       if (issuedTrustCredential && activationAttempted) {
         try {
           const check = await callBorrowerOtpApi("borrower.device.check", {
@@ -387,6 +389,7 @@ verifyOtpButton.addEventListener("click", async () => {
           });
           confirmedActive = Boolean(check && check.trusted === true);
         } catch (checkError) {
+          activationStatusUnknown = true;
           console.warn("Unable to resolve borrower device activation status.");
         }
       }
@@ -394,6 +397,10 @@ verifyOtpButton.addEventListener("click", async () => {
       if (confirmedActive) {
         otpStatus.textContent = "此瀏覽器已受信任";
         otpMessage.textContent = "裝置信任已由後端確認啟用；此瀏覽器可在 30 天期限內免重新輸入 OTP。";
+      } else if (activationStatusUnknown) {
+        otpStatus.textContent = "正在確認裝置信任狀態";
+        otpMessage.textContent = "後端回應暫時中斷，已保留此瀏覽器憑證。請重新整理頁面，系統會再次向後端確認；不會僅憑本機資料判定已受信任。";
+        console.warn("Borrower device activation outcome remains unknown; credential retained for a safe retry.");
       } else {
         if (issuedTrustCredential) {
           removeBorrowerTrustCredential(email);
@@ -407,7 +414,7 @@ verifyOtpButton.addEventListener("click", async () => {
           }
         }
         otpStatus.textContent = "Email 已驗證（本頁面）";
-        otpMessage.textContent = "Email 驗證成功，但 30 天裝置信任未能確認啟用。原受信任裝置在後端成功啟用新裝置前會維持有效。";
+        otpMessage.textContent = "Email 驗證成功，但 30 天裝置信任未能啟用。原受信任裝置仍維持有效，請重新驗證後再試。";
         console.warn("Borrower device trust activation was not confirmed.");
       }
     }
