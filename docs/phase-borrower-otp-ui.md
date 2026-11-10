@@ -40,3 +40,15 @@ Branch: `issues/13-borrower-otp-device-trust`
 - Borrow submission remains disabled; no `borrow.create` action is called.
 - This implementation is **not production-safe**: JavaScript/XSS can read localStorage credentials. A later security phase must replace or redesign this storage before production rollout.
 - Browser/GAS runtime tests have not yet been run. Static review only; user must run local tests and perform isolated browser tests.
+
+
+## Phase 2 — staged 30-day device trust activation (2026-11-10)
+- Uses the approved isolated-test-only localStorage credential storage.
+- After OTP, frontend calls `borrower.device.prepare`, persists the pending credential, then calls `borrower.device.activate`.
+- A failed localStorage write cancels the pending credential; the previously active browser remains trusted.
+- If activation request outcome is ambiguous, frontend checks the persisted credential with `borrower.device.check` before removing it.
+- Email field change triggers a server-side device trust check; valid trust can be recognized without requesting another OTP.
+- Backend contract actions are now `prepare`, `activate`, `cancel`, `check`, and `revoke`; no immediate-replacement `borrower.device.trust` action remains.
+- Borrow submission remains disabled and no `borrow.create` request is sent.
+- Static syntax checks were previously clean before this update; re-run `node --check app.js` and `node --check admin.js` after pulling the latest branch.
+- No deployment, PR, merge, or main-branch changes. localStorage remains temporary and not production-safe against XSS.
