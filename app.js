@@ -350,6 +350,7 @@ verifyOtpButton.addEventListener("click", async () => {
     otpStatus.textContent = "Email 驗證成功，正在建立 30 天裝置信任……";
     otpMessage.textContent = "正在將此瀏覽器設為唯一受信任裝置。";
     let issuedTrustCredential = "";
+    let activationAttempted = false;
     try {
       // Check storage availability before issuing a credential that replaces another browser.
       const storageProbe = BORROWER_TRUST_STORAGE_PREFIX + "probe";
@@ -364,6 +365,7 @@ verifyOtpButton.addEventListener("click", async () => {
       // Persist the pending credential locally before asking the server to replace
       // the currently active browser. The old browser remains trusted until activate succeeds.
       storeBorrowerTrustCredential(email, issuedTrustCredential);
+      activationAttempted = true;
       const activated = await callBorrowerOtpApi("borrower.device.activate", {
         email,
         deviceCredential: issuedTrustCredential
@@ -375,22 +377,40 @@ verifyOtpButton.addEventListener("click", async () => {
       otpStatus.textContent = "此瀏覽器已受信任";
       otpMessage.textContent = "Email 驗證成功。此瀏覽器已取得 30 天信任；其他瀏覽器的舊信任已失效。";
     } catch (trustError) {
-      // If the API issued a token but browser persistence failed, revoke it to avoid
-      // displacing the previously trusted browser without retaining the replacement.
-      if (issuedTrustCredential) {
-        removeBorrowerTrustCredential(email);
+      // Activation may have committed on the server even if its HTTP response was lost.
+      // Resolve that ambiguous outcome before deleting the browser credential.
+      let confirmedActive = false;
+      if (issuedTrustCredential && activationAttempted) {
         try {
-          await callBorrowerOtpApi("borrower.device.cancel", {
+          const check = await callBorrowerOtpApi("borrower.device.check", {
             email,
             deviceCredential: issuedTrustCredential
           });
-        } catch (cancelError) {
-          console.warn("Unable to cancel a pending borrower device credential.");
+          confirmedActive = Boolean(check && check.trusted === true);
+        } catch (checkError) {
+          console.warn("Unable to resolve borrower device activation status.");
         }
       }
-      otpStatus.textContent = "Email 已驗證（本頁面）";
-      otpMessage.textContent = "Email 驗證成功，但無法保存 30 天裝置信任。請勿清除或關閉此頁面；需要時可重新驗證。";
-      console.warn("Borrower device trust was not persisted.");
+
+      if (confirmedActive) {
+        otpStatus.textContent = "此瀏覽器已受信任";
+        otpMessage.textContent = "裝置信任已由後端確認啟用；此瀏覽器可在 30 天期限內免重新輸入 OTP。";
+      } else {
+        if (issuedTrustCredential) {
+          removeBorrowerTrustCredential(email);
+          try {
+            await callBorrowerOtpApi("borrower.device.cancel", {
+              email,
+              deviceCredential: issuedTrustCredential
+            });
+          } catch (cancelError) {
+            console.warn("Unable to cancel a pending borrower device credential.");
+          }
+        }
+        otpStatus.textContent = "Email 已驗證（本頁面）";
+        otpMessage.textContent = "Email 驗證成功，但 30 天裝置信任未能確認啟用。原受信任裝置在後端成功啟用新裝置前會維持有效。";
+        console.warn("Borrower device trust activation was not confirmed.");
+      }
     }
     otpInput.disabled = true;
     verifyOtpButton.textContent = "已完成驗證";
@@ -408,6 +428,12 @@ borrowerEmailInput.addEventListener("input", () => {
   if (otpRequestEmail && normalizedBorrowerEmail() !== otpRequestEmail) {
     resetBorrowerOtp("Email 已變更，請重新寄送並驗證新的 Email。");
   }
+});
+
+borrowerEmailInput.addEventListener("change", async () => {
+  const email = normalizedBorrowerEmail();
+  if (!email || !borrowerEmailInput.checkValidity() || otpVerifiedForEmail === email) return;
+  await checkBorrowerDeviceTrust(email);
 });
 
 form.addEventListener("submit", (event) => {
