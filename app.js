@@ -385,6 +385,7 @@ verifyOtpButton.addEventListener("click", async () => {
     otpVerifiedForEmail = email;
     otpStatus.textContent = "Email 驗證成功，正在建立 30 天裝置信任……";
     otpMessage.textContent = "正在將此瀏覽器設為唯一受信任裝置。";
+    let issuedTrustCredential = "";
     try {
       // Check storage availability before issuing a credential that replaces another browser.
       const storageProbe = BORROWER_TRUST_STORAGE_PREFIX + "probe";
@@ -394,10 +395,23 @@ verifyOtpButton.addEventListener("click", async () => {
       if (!trust || trust.trusted !== true || !/^[a-f0-9]{64}$/.test(String(trust.deviceCredential || ""))) {
         throw new Error("後端未回傳有效的裝置信任憑證。");
       }
-      storeBorrowerTrustCredential(email, trust.deviceCredential);
+      issuedTrustCredential = trust.deviceCredential;
+      storeBorrowerTrustCredential(email, issuedTrustCredential);
       otpStatus.textContent = "此瀏覽器已受信任";
       otpMessage.textContent = "Email 驗證成功。此瀏覽器已取得 30 天信任；其他瀏覽器的舊信任已失效。";
     } catch (trustError) {
+      // If the API issued a token but browser persistence failed, revoke it to avoid
+      // displacing the previously trusted browser without retaining the replacement.
+      if (issuedTrustCredential) {
+        try {
+          await callBorrowerOtpApi("borrower.device.revoke", {
+            email,
+            deviceCredential: issuedTrustCredential
+          });
+        } catch (revokeError) {
+          console.warn("Unable to revoke an unpersisted borrower device credential.");
+        }
+      }
       otpStatus.textContent = "Email 已驗證（本頁面）";
       otpMessage.textContent = "Email 驗證成功，但無法保存 30 天裝置信任。請勿清除或關閉此頁面；需要時可重新驗證。";
       console.warn("Borrower device trust was not persisted.");
@@ -417,13 +431,6 @@ verifyOtpButton.addEventListener("click", async () => {
 borrowerEmailInput.addEventListener("input", () => {
   if (otpRequestEmail && normalizedBorrowerEmail() !== otpRequestEmail) {
     resetBorrowerOtp("Email 已變更，請重新寄送並驗證新的 Email。");
-  }
-});
-
-borrowerEmailInput.addEventListener("blur", async () => {
-  const email = normalizedBorrowerEmail();
-  if (email && borrowerEmailInput.checkValidity() && !otpVerifiedForEmail) {
-    await checkBorrowerDeviceTrust(email);
   }
 });
 
