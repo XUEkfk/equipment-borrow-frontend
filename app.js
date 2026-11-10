@@ -1,7 +1,7 @@
-// GAS equipment.list integration only. Borrow submission remains intentionally disabled.
+// Public equipment list and verified borrower application flow.
 const apiConfig = window.APP_CONFIG || {};
 const equipmentList = document.querySelector("#equipment-list");
-const equipmentSelect = document.querySelector("#borrow-form select[name=" + '"equipmentId"' + "]");
+const equipmentSelect = document.querySelector('#borrow-form select[name="equipmentId"]');
 const form = document.querySelector("#borrow-form");
 const message = document.querySelector("#form-message");
 
@@ -238,6 +238,7 @@ async function checkBorrowerDeviceTrust(email) {
       otpInput.disabled = true;
       otpStatus.textContent = "此瀏覽器已受信任";
       otpMessage.textContent = "此 Email 已在本瀏覽器完成驗證，30 天期限內不必重新輸入 OTP。";
+      form.querySelector('button[type="submit"]').disabled = equipmentSelect.disabled;
       requestOtpButton.disabled = true;
       verifyOtpButton.disabled = true;
       resendOtpButton.disabled = true;
@@ -264,6 +265,7 @@ function resetBorrowerOtp(messageText = "Email 尚未驗證。") {
   otpEntry.hidden = true;
   otpStatus.textContent = "尚未驗證";
   otpMessage.textContent = messageText;
+  form.querySelector('button[type="submit"]').disabled = true;
   requestOtpButton.disabled = false;
   verifyOtpButton.disabled = false;
   verifyOtpButton.textContent = "確認驗證";
@@ -418,6 +420,7 @@ verifyOtpButton.addEventListener("click", async () => {
         otpStatus.textContent = "此瀏覽器已受信任";
         otpMessage.textContent = "裝置信任已由後端確認啟用；此瀏覽器可在 30 天期限內免重新輸入 OTP。";
       } else if (activationStatusUnknown) {
+        otpVerifiedForEmail = "";
         otpStatus.textContent = "正在確認裝置信任狀態";
         otpMessage.textContent = "後端回應暫時中斷，已保留此瀏覽器憑證。請重新整理頁面，系統會再次向後端確認；不會僅憑本機資料判定已受信任。";
         console.warn("Borrower device activation outcome remains unknown; credential retained for a safe retry.");
@@ -433,8 +436,9 @@ verifyOtpButton.addEventListener("click", async () => {
             console.warn("Unable to cancel a pending borrower device credential.");
           }
         }
-        otpStatus.textContent = "Email 已驗證（本頁面）";
-        otpMessage.textContent = "Email 驗證成功，但 30 天裝置信任未能啟用。原受信任裝置仍維持有效，請重新驗證後再試。";
+        otpVerifiedForEmail = "";
+        otpStatus.textContent = "Email 已驗證，但尚未可送出";
+        otpMessage.textContent = "Email 驗證成功，但 30 天裝置信任未能啟用。為避免使用已消耗的驗證狀態，請重新寄送 OTP 並完成驗證。";
         console.warn("Borrower device trust activation was not confirmed.");
       }
     }
@@ -442,7 +446,10 @@ verifyOtpButton.addEventListener("click", async () => {
     verifyOtpButton.textContent = "已完成驗證";
     requestOtpButton.disabled = true;
     resendOtpButton.disabled = true;
+    form.querySelector('button[type="submit"]').disabled = !otpVerifiedForEmail || equipmentSelect.disabled;
   } catch (error) {
+    otpVerifiedForEmail = "";
+    form.querySelector('button[type="submit"]').disabled = true;
     otpStatus.textContent = "驗證未成功";
     otpMessage.textContent = "Email 驗證失敗：" + error.message;
   } finally {
@@ -489,6 +496,9 @@ function getBorrowFormValues() {
     startDate: form.elements.namedItem("startDate").value,
     dueDate: form.elements.namedItem("dueDate").value
   };
+  if (values.dueDate < values.startDate) {
+    throw new Error("預定歸還日期不可早於借用起始日期。");
+  }
   if (!Number.isInteger(values.quantity) || values.quantity < 1) {
     throw new Error("借用數量必須是大於 0 的整數。");
   }
@@ -542,6 +552,7 @@ form.addEventListener("submit", async (event) => {
     message.textContent = "申請已送出，申請編號：" + result.requestId +
       "。目前狀態：待管理員審核。";
     form.reset();
+    borrowerEmailInput.value = values.email;
     resetBorrowerOtp("申請已送出。如需再次申請，請重新確認 Email 驗證狀態。");
     otpInput.disabled = false;
     lastSubmissionFingerprint = "";
