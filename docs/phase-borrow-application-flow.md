@@ -22,7 +22,7 @@
 
 - [x] 分支由最新 frontend main commit 建立。
 - [x] 靜態確認前端現在呼叫 `borrow.create`，並傳送必要借用欄位及冪等鍵。
-- [ ] 尚未執行 `node --check app.js`。
+- [x] 使用 V8 parser 對分支 `app.js` 與現有 `admin.js` 進行 JavaScript 語法解析，均通過；尚未在使用者 Windows 環境執行 `node --check`。
 - [ ] 尚未完成瀏覽器操作測試。
 - [ ] 尚未連接真實 GAS 完成借用申請 E2E。
 - [ ] 尚未合併或部署。
