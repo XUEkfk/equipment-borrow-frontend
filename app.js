@@ -527,8 +527,13 @@ form.addEventListener("submit", async (event) => {
   const credential = readBorrowerTrustCredential(values.email);
   const fingerprint = JSON.stringify(values);
   if (fingerprint !== lastSubmissionFingerprint) {
-    lastSubmissionFingerprint = fingerprint;
-    lastSubmissionIdempotencyKey = createIdempotencyKey();
+    try {
+      lastSubmissionIdempotencyKey = createIdempotencyKey();
+      lastSubmissionFingerprint = fingerprint;
+    } catch (error) {
+      message.textContent = error.message;
+      return;
+    }
   }
 
   const submitButton = form.querySelector('button[type="submit"]');
