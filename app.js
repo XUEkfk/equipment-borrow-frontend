@@ -1,6 +1,7 @@
 // GAS equipment.list integration only. Borrow submission remains intentionally disabled.
 const apiConfig = window.APP_CONFIG || {};
 const equipmentList = document.querySelector("#equipment-list");
+const equipmentSelect = document.querySelector("#borrow-form select[name=" + '"equipmentId"' + "]");
 const form = document.querySelector("#borrow-form");
 const message = document.querySelector("#form-message");
 
@@ -111,13 +112,32 @@ function renderEquipmentMessage(text, className) {
 
 function renderEquipment(items) {
   equipmentList.replaceChildren();
+  equipmentSelect.replaceChildren();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = items.length ? "請選擇設備" : "目前沒有可借用設備";
+  equipmentSelect.append(placeholder);
 
   if (items.length === 0) {
+    equipmentSelect.disabled = true;
     renderEquipmentMessage("目前沒有已啟用的設備。", "empty-state");
     return;
   }
 
   equipmentList.className = "equipment-grid";
+  items.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.equipmentId;
+    option.textContent = (item.equipmentCode ? item.equipmentCode + "｜" : "") +
+      item.name + "（總數 " + item.totalQuantity + "）";
+    option.disabled = item.totalQuantity < 1;
+    equipmentSelect.append(option);
+  });
+  equipmentSelect.disabled = items.every((item) => item.totalQuantity < 1);
+  if (!equipmentSelect.disabled) {
+    form.querySelector('button[type="submit"]').disabled = false;
+    form.querySelector('button[type="submit"]').textContent = "送出借用申請";
+  }
 
   items.forEach((item) => {
     const card = document.createElement("article");
@@ -442,9 +462,101 @@ borrowerEmailInput.addEventListener("change", async () => {
   await checkBorrowerDeviceTrust(email);
 });
 
-form.addEventListener("submit", (event) => {
+let borrowSubmissionInProgress = false;
+let lastSubmissionFingerprint = "";
+let lastSubmissionIdempotencyKey = "";
+
+function createIdempotencyKey() {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return window.crypto.randomUUID().replace(/-/g, "");
+  }
+  if (!window.crypto || typeof window.crypto.getRandomValues !== "function") {
+    throw new Error("此瀏覽器不支援安全亂數，請更新瀏覽器後再試。");
+  }
+  const bytes = new Uint8Array(24);
+  window.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+function getBorrowFormValues() {
+  const values = {
+    borrowerName: form.elements.namedItem("borrowerName").value.trim(),
+    borrowerPhone: form.elements.namedItem("borrowerPhone").value.trim(),
+    email: normalizedBorrowerEmail(),
+    equipmentId: form.elements.namedItem("equipmentId").value,
+    quantity: Number(form.elements.namedItem("quantity").value),
+    purpose: form.elements.namedItem("purpose").value.trim(),
+    startDate: form.elements.namedItem("startDate").value,
+    dueDate: form.elements.namedItem("dueDate").value
+  };
+  if (!Number.isInteger(values.quantity) || values.quantity < 1) {
+    throw new Error("借用數量必須是大於 0 的整數。");
+  }
+  return values;
+}
+
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  message.textContent = "申請功能尚未啟用，請待系統完成後再使用。";
+  if (borrowSubmissionInProgress) return;
+  if (!form.reportValidity()) return;
+
+  let values;
+  try {
+    values = getBorrowFormValues();
+  } catch (error) {
+    message.textContent = error.message;
+    return;
+  }
+
+  if (!values.email || otpVerifiedForEmail !== values.email) {
+    message.textContent = "請先完成此 Email 的驗證，才能送出借用申請。";
+    otpStatus.textContent = "尚未驗證";
+    return;
+  }
+
+  const credential = readBorrowerTrustCredential(values.email);
+  const fingerprint = JSON.stringify(values);
+  if (fingerprint !== lastSubmissionFingerprint) {
+    lastSubmissionFingerprint = fingerprint;
+    lastSubmissionIdempotencyKey = createIdempotencyKey();
+  }
+
+  const submitButton = form.querySelector('button[type="submit"]');
+  borrowSubmissionInProgress = true;
+  submitButton.disabled = true;
+  submitButton.textContent = "正在送出……";
+  message.textContent = "正在確認驗證狀態並送出申請，請勿重複操作。";
+
+  try {
+    const payload = {
+      ...values,
+      idempotencyKey: lastSubmissionIdempotencyKey
+    };
+    if (credential) payload.deviceCredential = credential;
+
+    const result = await callBorrowerOtpApi("borrow.create", payload);
+    if (!result || !result.requestId) {
+      throw new Error("後端未回傳申請編號，請稍後確認申請狀態。");
+    }
+
+    message.textContent = "申請已送出，申請編號：" + result.requestId +
+      "。目前狀態：待管理員審核。";
+    form.reset();
+    resetBorrowerOtp("申請已送出。如需再次申請，請重新確認 Email 驗證狀態。");
+    otpInput.disabled = false;
+    lastSubmissionFingerprint = "";
+    lastSubmissionIdempotencyKey = "";
+    if (credential) {
+      await checkBorrowerDeviceTrust(values.email);
+    }
+  } catch (error) {
+    message.textContent = "申請送出失敗：" + error.message +
+      "。若是連線中斷，可在資料不變的情況下再次送出，系統會避免重複建立申請。";
+  } finally {
+    borrowSubmissionInProgress = false;
+    submitButton.disabled = equipmentSelect.disabled;
+    submitButton.textContent = "送出借用申請";
+  }
 });
 
 loadEquipment();
