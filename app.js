@@ -355,25 +355,37 @@ verifyOtpButton.addEventListener("click", async () => {
       const storageProbe = BORROWER_TRUST_STORAGE_PREFIX + "probe";
       window.localStorage.setItem(storageProbe, "1");
       window.localStorage.removeItem(storageProbe);
-      const trust = await callBorrowerOtpApi("borrower.device.trust", { email });
-      if (!trust || trust.trusted !== true || !/^[a-f0-9]{64}$/.test(String(trust.deviceCredential || ""))) {
-        throw new Error("後端未回傳有效的裝置信任憑證。");
+      const prepared = await callBorrowerOtpApi("borrower.device.prepare", { email });
+      if (!prepared || prepared.prepared !== true || !/^[a-f0-9]{64}$/.test(String(prepared.deviceCredential || ""))) {
+        throw new Error("後端未回傳有效的待啟用裝置信任憑證。");
       }
-      issuedTrustCredential = trust.deviceCredential;
+      issuedTrustCredential = prepared.deviceCredential;
+
+      // Persist the pending credential locally before asking the server to replace
+      // the currently active browser. The old browser remains trusted until activate succeeds.
       storeBorrowerTrustCredential(email, issuedTrustCredential);
+      const activated = await callBorrowerOtpApi("borrower.device.activate", {
+        email,
+        deviceCredential: issuedTrustCredential
+      });
+      if (!activated || activated.trusted !== true) {
+        removeBorrowerTrustCredential(email);
+        throw new Error("裝置信任啟用失敗，原受信任裝置不應受到影響。");
+      }
       otpStatus.textContent = "此瀏覽器已受信任";
       otpMessage.textContent = "Email 驗證成功。此瀏覽器已取得 30 天信任；其他瀏覽器的舊信任已失效。";
     } catch (trustError) {
       // If the API issued a token but browser persistence failed, revoke it to avoid
       // displacing the previously trusted browser without retaining the replacement.
       if (issuedTrustCredential) {
+        removeBorrowerTrustCredential(email);
         try {
-          await callBorrowerOtpApi("borrower.device.revoke", {
+          await callBorrowerOtpApi("borrower.device.cancel", {
             email,
             deviceCredential: issuedTrustCredential
           });
-        } catch (revokeError) {
-          console.warn("Unable to revoke an unpersisted borrower device credential.");
+        } catch (cancelError) {
+          console.warn("Unable to cancel a pending borrower device credential.");
         }
       }
       otpStatus.textContent = "Email 已驗證（本頁面）";
