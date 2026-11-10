@@ -19,9 +19,13 @@ Working branch: `issues/13-otp-security-hardening`
 
 ## Verification
 
-- Read-only source review only.
-- No frontend code behavior changed in this initial pass.
+- Read-only source review covered `app.js`, `admin.js`, `index.html`, `admin.html`, `config.js`, and `styles.css`.
+- No `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval`, or `new Function` sinks were found in the reviewed frontend files.
+- Dynamic equipment and admin-request content is rendered through DOM node creation and `textContent` in the reviewed paths.
+- `config.js` contains the public GAS Web App endpoint only; it does not contain an admin password or private credential. A public endpoint is not an authentication secret.
+- No frontend code behavior changed in this review.
 - Production frontend was not deployed or modified.
+- This is a targeted static review, not a complete security certification or runtime XSS test.
 
 ## Remaining work
 
